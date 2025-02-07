@@ -1,7 +1,7 @@
 CC = clang++
 
 BIN = build
-APP = app
+APP = boum
 
 SRC = ${wildcard src/*.cpp}
 OBJ = $(patsubst %.cpp, $(BIN)/%.o, $(SRC))
