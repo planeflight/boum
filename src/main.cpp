@@ -29,23 +29,39 @@ void wave(float *samples, u32 frames) {
     current_frames += frames;
 }
 
-const u32 N = 256;
-Complex in[N];
+const u32 N = 1 << 12; // up to just around 20kHz, ignore a bunch of high
+                       // frequencies, anyways frequency is not linear
+Complex in[N] = {0};
 Complex out[N] = {0};
+
+f32 amp(Complex a) {
+    f32 r = a.real();
+    f32 i = a.imag();
+    return std::log(r * r + i * i);
+}
+f32 max_amp = 0.1f;
 
 void processor(void *buffer, u32 frames) {
     f32 *samples = (f32 *)buffer; // Samples internally stored as <float>s
-    wave(samples, frames);
+    // wave(samples, frames);
 
     // load the input array
-    for (u32 i = 0; i < N; ++i) {
-        in[i] = samples[i * 2];
+    for (u32 i = 0; i < frames; ++i) {
+        memmove(in, in + 1, (N - 1) * sizeof(Complex));
+        in[N - 1] = samples[i * 2];
     }
     // perform fft
     fft(in, out, 1, N);
+    for (u32 i = 0; i < N; ++i) {
+        f32 a = amp(out[i]);
+        if (a > max_amp) {
+            max_amp = a;
+        }
+    }
 }
 
 i32 main() {
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(window_width, window_height, "Boum");
     InitAudioDevice();
     Music music = LoadMusicStream("./res/dungeon.ogg");
@@ -59,7 +75,7 @@ i32 main() {
            music.stream.channels,
            music.frameCount);
 
-    SetTargetFPS(30);
+    SetTargetFPS(60);
     while (!WindowShouldClose()) {
         f32 dt = GetFrameTime();
         UpdateMusicStream(music); // Update music buffer with new stream data
@@ -72,21 +88,24 @@ i32 main() {
         }
 
         BeginDrawing();
-        ClearBackground(RAYWHITE);
+        ClearBackground(Color(10.0f, 10.0f, 10.0f, 255.0f));
 
-        // for (i32 i = 0; i < num_frames; i++) {
-        //     f32 t = music_frames[i * 2];
-        //     DrawRectangle(
-        //         1 + i, window_height / 2 - (i32)(t * 32), 1, t * 64, GOLD);
-        // }
-        f32 cell_width = (f32)window_width / N;
-        for (u32 i = 0; i < N; ++i) {
-            f32 value = std::max(out[i].real(), out[i].imag());
-            // f32 value = in[i].real();
+        f32 w = GetScreenWidth(), h = GetScreenHeight();
+
+        f32 cell_width = 4;
+        f32 scale = 300.0f;
+        for (u32 i = 1; i < N - 1; ++i) {
+            f32 value = amp(out[i]) / max_amp;
+            value += amp(out[i + 1]) / max_amp;
+            value += amp(out[i - 1]) / max_amp;
+            value /= 3.0f;
+            if (i * cell_width > w) {
+                break;
+            }
             DrawRectangle(i * cell_width,
-                          window_height / 2 - value * 32.0f,
+                          h / 2.0f - value * scale,
                           cell_width,
-                          value * 32.0f,
+                          value * scale * 2.0f,
                           RED);
         }
         EndDrawing();
