@@ -29,15 +29,16 @@ void wave(float *samples, u32 frames) {
     current_frames += frames;
 }
 
-const u32 N = 1 << 12; // up to just around 20kHz, ignore a bunch of high
+const u32 N = 1 << 13; // up to just around 20kHz, ignore a bunch of high
                        // frequencies, anyways frequency is not linear
 Complex in[N] = {0};
 Complex out[N] = {0};
 
 f32 amp(Complex a) {
-    f32 r = a.real();
-    f32 i = a.imag();
-    return std::log(r * r + i * i);
+    f32 c = a.real();
+    f32 s = a.imag();
+    f32 mag2 = c * c + s * s;
+    return std::sqrt(mag2);
 }
 f32 max_amp = 0.1f;
 
@@ -92,21 +93,22 @@ i32 main() {
 
         f32 w = GetScreenWidth(), h = GetScreenHeight();
 
-        f32 cell_width = 4;
-        f32 scale = 300.0f;
-        for (u32 i = 1; i < N - 1; ++i) {
+        f32 cell_width = 16;
+        f32 scale = 200.0f;
+        for (u32 i = 1; i < N; ++i) {
             f32 value = amp(out[i]) / max_amp;
-            value += amp(out[i + 1]) / max_amp;
-            value += amp(out[i - 1]) / max_amp;
-            value /= 3.0f;
             if (i * cell_width > w) {
                 break;
             }
-            DrawRectangle(i * cell_width,
+            DrawRectangle(i * cell_width + 1,
                           h / 2.0f - value * scale,
-                          cell_width,
+                          cell_width - 1,
                           value * scale * 2.0f,
                           RED);
+            // DrawCircle(i * cell_width + cell_width * 0.5f,
+            //            h / 2.0f - value * scale,
+            //            cell_width + value * cell_width * 0.4f,
+            //            RED);
         }
         EndDrawing();
     }
