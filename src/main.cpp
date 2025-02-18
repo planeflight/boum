@@ -1,13 +1,14 @@
 #include <raylib.h>
+#include <raymath.h>
+#include <rlgl.h>
 
-#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <iostream>
-#include <valarray>
 
 #include "math.hpp"
 #include "util/types.hpp"
+#include "video.hpp"
 
 static constexpr i32 window_width = 1600, window_height = 900;
 
@@ -77,6 +78,20 @@ i32 main() {
            music.frameCount);
 
     SetTargetFPS(60);
+
+    RenderTexture2D fbo;
+    Shader shader = LoadShader("./res/shader.rect.vs", "./res/shader/rect.fs");
+    Matrix mat;
+    mat = MatrixOrtho(0.0f, window_width, 0.0f, window_height, -1.0f, 1.0f);
+    SetShaderValueMatrix(shader, GetShaderLocation(shader, "mvp"), mat);
+
+    Texture2D default_tex = {
+        rlGetTextureIdDefault(), 1, 1, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
+    SetShapesTexture(default_tex, (Rectangle){0.0f, 0.0f, 1.0f, 1.0f});
+
+    Video video(1920, 1080);
+    video.ffmpeg_start("output.mp4", 30);
+
     while (!WindowShouldClose()) {
         f32 dt = GetFrameTime();
         UpdateMusicStream(music); // Update music buffer with new stream data
@@ -93,6 +108,7 @@ i32 main() {
 
         f32 w = GetScreenWidth(), h = GetScreenHeight();
 
+        // BeginTextureMode(fbo);
         f32 cell_width = 16;
         f32 scale = 200.0f;
         for (u32 i = 1; i < N; ++i) {
@@ -100,18 +116,23 @@ i32 main() {
             if (i * cell_width > w) {
                 break;
             }
-            DrawRectangle(i * cell_width + 1,
+            Color color = hsv_to_rgb(i * cell_width / w * 360.0f, 0.7f, 0.85f);
+            BeginShaderMode(shader);
+            DrawRectangle(i * cell_width,
                           h / 2.0f - value * scale,
                           cell_width - 1,
                           value * scale * 2.0f,
-                          RED);
-            // DrawCircle(i * cell_width + cell_width * 0.5f,
-            //            h / 2.0f - value * scale,
-            //            cell_width + value * cell_width * 0.4f,
-            //            RED);
+                          color);
+            EndShaderMode();
         }
+        // EndTextureMode();
+        // video.write_frame((u32 *)LoadImageFromTexture(fbo.texture).data);
+        // DrawTexture(fbo.texture, 0.0f, 0.0f, RAYWHITE);
         EndDrawing();
     }
+    video.ffmpeg_end();
+
+    UnloadShader(shader);
 
     DetachAudioStreamProcessor(music.stream, processor);
 
@@ -141,4 +162,24 @@ i32 main2() {
                outf[i].imag());
     }
     return 0;
+}
+
+i32 main1() {
+    Video video(1600, 900);
+    video.ffmpeg_start("output.mp4", 30);
+    u32 screen[1600 * 900];
+    for (u32 y = 0; y < 900; ++y) {
+        for (u32 x = 0; x < 1600; ++x) {
+            if ((y + x) % 2 == 0) {
+                screen[y * 1600 + x] = 0xffffffff;
+            } else {
+                screen[y * 1600 + x] = 0xff00ffff;
+            }
+        }
+    }
+    // 4 seconds
+    for (u32 i = 0; i < 120; ++i) {
+        video.write_frame(screen);
+    }
+    video.ffmpeg_end();
 }
