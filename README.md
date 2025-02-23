@@ -4,6 +4,8 @@ C'est une sacrée boum quand vous allumez ce programme !
 
 Music visualizer with fancy effects.
 
+![BOUM Screenshot](./res/screenshot.png)
+
 ## Build
 
 ```bash
