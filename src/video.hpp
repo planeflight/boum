@@ -3,23 +3,33 @@
 
 #include <cstdio>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 #include "util/types.hpp"
 
 struct Video {
     FILE *ffmpeg_handle = nullptr;
-    u32 w = 1920, h = 1080;
+    u32 w = 1600, h = 900;
     Video(u32 w, u32 h) : w(w), h(h) {}
 
-    void ffmpeg_start(const std::string &out, u32 fps) {
-        ffmpeg_handle = popen(
-            "ffmpeg -loglevel verbose -y -f rawvideo -pix_fmt rgba -s 1600x900 "
-            "-r 60 -i - -c:v libx264 -vb 2500k -c:a aac -ab 200k "
-            "-pix_fmt yuv420p output.mp4",
-            "w");
+    void ffmpeg_start(const std::string &sound_track,
+                      const std::string &out,
+                      u32 fps) {
+        std::cout << "yo\n";
+        std::stringstream cmd;
+        cmd << "ffmpeg -loglevel verbose -y -f rawvideo -pix_fmt rgba -s ";
+        cmd << w << "x" << h << " ";
+        cmd << "-r " << fps << " -i - ";
+        cmd << "-i " << sound_track
+            << " -c:v libx264 -vb 2500k -c:a aac -ab 200k -pix_fmt yuv420p ";
+        cmd << out;
+
+        ffmpeg_handle = popen(cmd.str().c_str(), "w");
         if (!ffmpeg_handle) {
-            std::cerr << "ERROR: Failed to open FFMPEG pipe\n";
+            std::cerr << "ERROR: Failed to open FFMPEG with the following "
+                         "command: '"
+                      << cmd.str() << "'\n";
         }
     }
 
@@ -28,6 +38,7 @@ struct Video {
     }
 
     void ffmpeg_end() {
+        fflush(ffmpeg_handle);
         pclose(ffmpeg_handle);
     }
 };

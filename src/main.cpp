@@ -6,6 +6,7 @@
 #include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <string>
 
 #include "math.hpp"
 #include "util/types.hpp"
@@ -64,9 +65,19 @@ void processor(void *buffer, u32 frames) {
 }
 
 i32 main(i32 argc, char **argv) {
-    if (argc != 2) {
-        std::cerr << "ERROR: Please open 1 file!\n";
-        std::cerr << "USAGE: ./boum <path-to-file>\n";
+    std::string output = "";
+    u32 fps = 30;
+    // check if there are a valid number of command line arguments
+    if (argc == 2) {
+    } else if (argc == 3) {
+        output = argv[2];
+    } else if (argc == 4) {
+        output = argv[2];
+        fps = std::stoi(argv[3]);
+    } else {
+        std::cerr << "ERROR: Please open 1 file and optionally 1 output file, "
+                     "and the fps!\n";
+        std::cerr << "USAGE: ./boum <path-to-file> <output-file> <fps> \n";
         return -1;
     }
     // extract file path
@@ -101,10 +112,11 @@ i32 main(i32 argc, char **argv) {
         rlGetTextureIdDefault(), 1, 1, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
     SetShapesTexture(default_tex, (Rectangle){0.0f, 0.0f, 1.0f, 1.0f});
 
-    Video video(1920, 1080);
-    video.ffmpeg_start("output.mp4", 30);
-
-    SetTargetFPS(60);
+    Video video(1600, 900);
+    if (!output.empty()) {
+        video.ffmpeg_start(music_file_path, "output.mp4", fps);
+    }
+    SetTargetFPS(fps);
     while (!WindowShouldClose()) {
         f32 dt = GetFrameTime();
         UpdateMusicStream(music); // Update music buffer with new stream data
@@ -139,7 +151,9 @@ i32 main(i32 argc, char **argv) {
         }
         EndTextureMode();
         // write data to file
-        video.write_frame((u32 *)LoadImageFromTexture(fbo.texture).data);
+        if (!output.empty()) {
+            video.write_frame((u32 *)LoadImageFromTexture(fbo.texture).data);
+        }
 
         // draw the visual onscreen
         BeginDrawing();
@@ -147,7 +161,9 @@ i32 main(i32 argc, char **argv) {
         DrawTexture(fbo.texture, 0.0f, 0.0f, RAYWHITE);
         EndDrawing();
     }
-    video.ffmpeg_end();
+    if (!output.empty()) {
+        video.ffmpeg_end();
+    }
 
     // detach, free all resources
     UnloadShader(shader);
@@ -180,24 +196,4 @@ i32 main2() {
                outf[i].imag());
     }
     return 0;
-}
-
-i32 main1() {
-    Video video(1600, 900);
-    video.ffmpeg_start("output.mp4", 30);
-    u32 screen[1600 * 900];
-    for (u32 y = 0; y < 900; ++y) {
-        for (u32 x = 0; x < 1600; ++x) {
-            if ((y + x) % 2 == 0) {
-                screen[y * 1600 + x] = 0xffffffff;
-            } else {
-                screen[y * 1600 + x] = 0xff00ffff;
-            }
-        }
-    }
-    // 4 seconds
-    for (u32 i = 0; i < 120; ++i) {
-        video.write_frame(screen);
-    }
-    video.ffmpeg_end();
 }
