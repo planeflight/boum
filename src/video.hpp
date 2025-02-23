@@ -14,8 +14,8 @@ struct Video {
 
     void ffmpeg_start(const std::string &out, u32 fps) {
         ffmpeg_handle = popen(
-            "ffmpeg -loglevel verbose -y -f rawvideo -pix_fmt rgba -s 1600x900"
-            "-r 30 -i - -c:v libx264 -vb 2500k -c:a aac -ab 200k "
+            "ffmpeg -loglevel verbose -y -f rawvideo -pix_fmt rgba -s 1600x900 "
+            "-r 60 -i - -c:v libx264 -vb 2500k -c:a aac -ab 200k "
             "-pix_fmt yuv420p output.mp4",
             "w");
         if (!ffmpeg_handle) {

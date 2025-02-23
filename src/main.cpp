@@ -88,12 +88,15 @@ i32 main(i32 argc, char **argv) {
 
     AttachAudioStreamProcessor(music.stream, processor);
 
-    RenderTexture2D fbo;
+    RenderTexture2D fbo = LoadRenderTexture(window_width, window_height);
+
+    // shader uniforms
     Shader shader = LoadShader("./res/shader.rect.vs", "./res/shader/rect.fs");
     Matrix mat;
     mat = MatrixOrtho(0.0f, window_width, 0.0f, window_height, -1.0f, 1.0f);
     SetShaderValueMatrix(shader, GetShaderLocation(shader, "mvp"), mat);
 
+    // set default texture for shape renderer, so we can use shaders
     Texture2D default_tex = {
         rlGetTextureIdDefault(), 1, 1, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
     SetShapesTexture(default_tex, (Rectangle){0.0f, 0.0f, 1.0f, 1.0f});
@@ -113,13 +116,12 @@ i32 main(i32 argc, char **argv) {
             }
         }
 
-        BeginDrawing();
-        ClearBackground(Color(10.0f, 10.0f, 10.0f, 255.0f));
-
         f32 w = GetScreenWidth(), h = GetScreenHeight();
 
-        // BeginTextureMode(fbo);
-        f32 cell_width = 16;
+        // draw to texture
+        BeginTextureMode(fbo);
+        ClearBackground(Color(10.0f, 10.0f, 10.0f, 255.0f));
+        f32 cell_width = 16.0f;
         f32 scale = 200.0f;
         for (u32 i = 1; i < N; ++i) {
             f32 value = amp(out[i]) / max_amp;
@@ -135,9 +137,14 @@ i32 main(i32 argc, char **argv) {
                           color);
             EndShaderMode();
         }
-        // EndTextureMode();
-        // video.write_frame((u32 *)LoadImageFromTexture(fbo.texture).data);
-        // DrawTexture(fbo.texture, 0.0f, 0.0f, RAYWHITE);
+        EndTextureMode();
+        // write data to file
+        video.write_frame((u32 *)LoadImageFromTexture(fbo.texture).data);
+
+        // draw the visual onscreen
+        BeginDrawing();
+        ClearBackground(Color(10.0f, 10.0f, 10.0f, 255.0f));
+        DrawTexture(fbo.texture, 0.0f, 0.0f, RAYWHITE);
         EndDrawing();
     }
     video.ffmpeg_end();
