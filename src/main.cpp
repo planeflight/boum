@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 
 #include "math.hpp"
@@ -44,7 +45,7 @@ f32 amp(Complex a) {
 f32 max_amp = 0.1f;
 
 void processor(void *buffer, u32 frames) {
-    f32 *samples = (f32 *)buffer; // Samples internally stored as <float>s
+    f32 *samples = (f32 *)buffer; // Samples internally stored as float
     // wave(samples, frames);
 
     // load the input array
@@ -62,22 +63,30 @@ void processor(void *buffer, u32 frames) {
     }
 }
 
-i32 main() {
+i32 main(i32 argc, char **argv) {
+    if (argc != 2) {
+        std::cerr << "ERROR: Please open 1 file!\n";
+        std::cerr << "USAGE: ./boum <path-to-file>\n";
+        return -1;
+    }
+    // extract file path
+    std::string music_file_path = argv[1];
+    if (!std::filesystem::exists(music_file_path)) {
+        std::cerr << "ERROR: Failed to find file: '" << music_file_path
+                  << "'\n";
+        return -2;
+    }
+
+    // configure raylib, open window
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    InitWindow(window_width, window_height, "Boum");
+    InitWindow(window_width, window_height, "BOUM - Éxplosions pour la teuf!");
     InitAudioDevice();
-    Music music = LoadMusicStream("./res/dungeon.ogg");
-    // Music music = LoadMusicStream("./res/sample.mp3");
+    // load music, set volume
+    Music music = LoadMusicStream(music_file_path.c_str());
     SetMusicVolume(music, 1.0f);
     PlayMusicStream(music);
-    AttachAudioStreamProcessor(music.stream, processor);
-    printf("%i %i %i %i\n",
-           music.stream.sampleSize,
-           music.stream.sampleRate,
-           music.stream.channels,
-           music.frameCount);
 
-    SetTargetFPS(60);
+    AttachAudioStreamProcessor(music.stream, processor);
 
     RenderTexture2D fbo;
     Shader shader = LoadShader("./res/shader.rect.vs", "./res/shader/rect.fs");
@@ -92,6 +101,7 @@ i32 main() {
     Video video(1920, 1080);
     video.ffmpeg_start("output.mp4", 30);
 
+    SetTargetFPS(60);
     while (!WindowShouldClose()) {
         f32 dt = GetFrameTime();
         UpdateMusicStream(music); // Update music buffer with new stream data
@@ -132,6 +142,7 @@ i32 main() {
     }
     video.ffmpeg_end();
 
+    // detach, free all resources
     UnloadShader(shader);
 
     DetachAudioStreamProcessor(music.stream, processor);
